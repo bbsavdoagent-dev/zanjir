@@ -1,0 +1,7 @@
+{$SITE_ADDRESS} {
+	encode gzip zstd
+	reverse_proxy app:8080 {
+		# Real vaqt (SSE) xabarlari kechikmasdan yetkazilishi uchun
+		flush_interval -1
+	}
+}

@@ -1,0 +1,29 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      TRUST_PROXY: "true"
+    volumes:
+      - zanjir-data:/data   # SQLite ma'lumotlar bazasi shu yerda saqlanadi
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # Domen bo'lsa: SITE_ADDRESS=zanjir.uz (HTTPS avtomatik). Bo'lmasa: :80 (faqat HTTP, IP orqali)
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  zanjir-data:
+  caddy-data:
+  caddy-config:
