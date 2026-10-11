@@ -18,7 +18,7 @@ export function sendJson(res, status, body, headers = {}) {
   res.end(payload);
 }
 
-export async function readJson(req, limitBytes = 100_000) {
+export async function readJson(req, limitBytes = 2_000_000) {
   const chunks = [];
   let size = 0;
   for await (const chunk of req) {
