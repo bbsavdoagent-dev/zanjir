@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { Product, ProductUnit } from '../../types';
 import { dbService } from '../../services/dbService';
@@ -27,6 +27,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       'https://images.unsplash.com/photo-1600271886742-f049cd451bba?auto=format&fit=crop&w=600&q=80'
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [imageError, setImageError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [errorMsg, setErrorMsg] = useState('');
 
   if (!isOpen) return null;
@@ -204,14 +206,69 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           </div>
 
           <div>
-            <label className="block font-bold text-slate-700 mb-1">Rasm URL manzili</label>
-            <input
-              type="url"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              placeholder="https://images.unsplash.com/..."
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
-            />
+            <label className="block font-bold text-slate-700 mb-1">Mahsulot rasmi</label>
+            <div className="flex items-start gap-3">
+              <div className="w-20 h-20 shrink-0 rounded-xl border border-slate-200 bg-slate-50 overflow-hidden flex items-center justify-center">
+                {imageUrl ? <img src={imageUrl} alt="Mahsulot ko‘rinishi" className="w-full h-full object-cover" /> : <span className="text-slate-400 text-[10px] text-center px-1">Rasm tanlanmagan</span>}
+              </div>
+              <div className="flex-1 space-y-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    setImageError('');
+                    if (!file) return;
+                    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+                      setImageError('Faqat JPG yoki PNG formatdagi rasm tanlang.');
+                      e.target.value = '';
+                      return;
+                    }
+                    if (file.size > 5 * 1024 * 1024) {
+                      setImageError('Rasm 5 MB dan kichik bo‘lishi kerak.');
+                      e.target.value = '';
+                      return;
+                    }
+                    try {
+                      const source = await new Promise<HTMLImageElement>((resolve, reject) => {
+                        const url = URL.createObjectURL(file);
+                        const img = new Image();
+                        img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+                        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Rasmni o‘qib bo‘lmadi')); };
+                        img.src = url;
+                      });
+                      const maxSide = 1000;
+                      const scale = Math.min(1, maxSide / Math.max(source.width, source.height));
+                      const canvas = document.createElement('canvas');
+                      canvas.width = Math.max(1, Math.round(source.width * scale));
+                      canvas.height = Math.max(1, Math.round(source.height * scale));
+                      const ctx = canvas.getContext('2d');
+                      if (!ctx) throw new Error('Rasmni qayta ishlash imkoni bo‘lmadi');
+                      ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+                      let dataUrl = canvas.toDataURL('image/jpeg', 0.78);
+                      if (dataUrl.length > 1_800_000) dataUrl = canvas.toDataURL('image/jpeg', 0.55);
+                      if (dataUrl.length > 1_800_000) throw new Error('Rasm hajmi katta. Kichikroq rasm tanlang.');
+                      setImageUrl(dataUrl);
+                    } catch (err) {
+                      setImageError(err instanceof Error ? err.message : 'Rasmni yuklab bo‘lmadi');
+                    }
+                  }}
+                  className="block w-full text-[11px] text-slate-600 file:mr-2 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-3 file:py-2 file:font-bold file:text-emerald-800 hover:file:bg-emerald-100"
+                />
+                <p className="text-[10px] text-slate-500">JPG yoki PNG · 5 MB gacha. Rasm serverga yuborishdan oldin kichraytiriladi.</p>
+                <label className="block font-bold text-slate-700">Yoki rasm URL manzili</label>
+                <input
+                  type="url"
+                  value={imageUrl.startsWith('data:image/') ? '' : imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                />
+                {imageUrl.startsWith('data:image/') && <button type="button" onClick={() => { setImageUrl(''); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="text-rose-600 font-semibold">Tanlangan rasmni olib tashlash</button>}
+                {imageError && <p className="text-rose-600">{imageError}</p>}
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 pt-2">
