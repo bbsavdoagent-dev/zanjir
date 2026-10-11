@@ -93,7 +93,15 @@ export function parseProduct(body, { partial }) {
     if (typeof body.isActive !== 'boolean') throw bad('Holat noto\'g\'ri');
     out.isActive = body.isActive;
   }
-  if (need('imageUrl')) out.imageUrl = httpUrl(body.imageUrl, 'Rasm havolasi');
+  if (need('imageUrl')) {
+    const imageUrl = body.imageUrl;
+    if (typeof imageUrl === 'string' && /^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(imageUrl)) {
+      if (imageUrl.length > 1_800_000) throw bad('Mahsulot rasmi juda katta');
+      out.imageUrl = imageUrl;
+    } else {
+      out.imageUrl = httpUrl(imageUrl, 'Rasm havolasi');
+    }
+  }
   return out;
 }
 
